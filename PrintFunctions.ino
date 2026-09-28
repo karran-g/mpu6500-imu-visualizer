@@ -7,33 +7,38 @@ void printAxisStats(const char* listName, AxisStats stats[], int size) {
     Serial.println(" ===");
 
     for (int i = 0; i < 3; i++) {
-        Serial.print("Index [");
-        Serial.print(i);
-        Serial.print("] ");
-        Serial.print("Min: ");
-        Serial.print(stats[i].min / 16384.0f);
-        Serial.print(" | Max: ");
-        Serial.print(stats[i].max / 16384.0f);
-        Serial.print(" | Avg: ");
-        Serial.print(stats[i].sum / (float)stats[i].count / 16384.0f);
-        Serial.println();
+        if (stats[i].count > 0) {
+            Serial.print("Index [");
+            Serial.print(i);
+            Serial.print("] ");
+            Serial.print("Min: ");
+            Serial.print(stats[i].min / 16384.0f);
+            Serial.print(" | Max: ");
+            Serial.print(stats[i].max / 16384.0f);
+            Serial.print(" | Avg: ");
+            Serial.print(stats[i].sum / (float)stats[i].count / 16384.0f);
+            Serial.println();
+        }
     }
     Serial.println();
 
     for (int i = 3; i < 6; i++) {
-        Serial.print("Index [");
-        Serial.print(i);
-        Serial.print("] ");
-        Serial.print("Min: ");
-        Serial.print(stats[i].min / 131.0f);
-        Serial.print(" | Max: ");
-        Serial.print(stats[i].max / 131.0f);
-        Serial.print(" | Avg: ");
-        Serial.print(stats[i].sum / (float)stats[i].count / 131.0f);
-        Serial.println();
+        if (stats[i].count > 0) {
+            Serial.print("Index [");
+            Serial.print(i);
+            Serial.print("] ");
+            Serial.print("Min: ");
+            Serial.print(stats[i].min / 131.0f);
+            Serial.print(" | Max: ");
+            Serial.print(stats[i].max / 131.0f);
+            Serial.print(" | Avg: ");
+            Serial.print(stats[i].sum / (float)stats[i].count / 131.0f);
+            Serial.println();
+        }
     }
     Serial.println();
 }
+
 // 2. Function to print configReg arrays
 void printConfigRegisters(configReg configs[], int size) {
     Serial.println("=== Config Registers ===");
@@ -55,4 +60,23 @@ void printConfigRegisters(configReg configs[], int size) {
         Serial.println(configs[i].valCheck ? "true" : "false");
     }
     Serial.println();
+}
+// 3. Function to print the list containing the gyro bias or the avg[3] - avg[5]
+void printBias(const char* listName, float* bias) {
+    Serial.print("=== Bias List: ");
+    Serial.print(listName);
+    Serial.println(" ===");
+    Serial.print("gx  :");
+    Serial.print(bias[0]);
+    Serial.println();
+    Serial.print("gy  :");
+    Serial.print(bias[1]);
+    Serial.println();
+    Serial.print("gz  :");
+    Serial.print(bias[2]);
+    Serial.println();
+}
+//Will work on it if needed
+void printCorrected(const char* listName, float *list){
+
 }
