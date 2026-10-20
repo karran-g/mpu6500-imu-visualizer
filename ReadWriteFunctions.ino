@@ -3,18 +3,19 @@ byte writeRegByte(uint8_t address, uint8_t reg, uint8_t val) {
     Wire.beginTransmission(address);
     Wire.write(reg);
     Wire.write(val);
-    return Wire.endTransmission();
+    return Wire.endTransmission(); // 0 - success; 1 - data too long; 2 - received NACK on address; 3 - received NACK on data; 4 - other error; 5 - timeout.
 }
 
 //Function to read a register (Single byte read).
 bool readReg(uint8_t address, uint8_t reg, uint8_t *out) {
-    return readRegBurst(address,reg,out,1); // better since i only need to change readRegBurst in AVR devices and error cases.
+    return readRegBurst(address,reg,out,1); // better since I only need to change readRegBurst in AVR devices and error cases.
 }
 //Function to read a burst of n = len  bytes from a register and store the data into a buffer list.
 bool readRegBurst(uint8_t address, uint8_t reg, uint8_t *buffer, uint8_t len) {
     /*
     esp32 core : endTransmission(false) only queues the register byte and always retruns 0.
     The address r+w happen both in requestFrom(). so it's byte count is the only thing you can check.
+    In simple terms : a check on endTransmission(false) would always return 0 on esp32 so it tells nothign.
     No way to find a difference between NACK and short reads (In AVR boards like arduino it is possible to do so, I think.)
     */
     Wire.beginTransmission(address);

@@ -62,8 +62,8 @@ void printConfigRegisters(configReg configs[], int size) {
     Serial.println();
 }
 // 3. Function to print the list containing the gyro bias or the avg[3] - avg[5]
-void printBias(const char* listName, float* bias) {
-    Serial.print("=== Bias List: ");
+void printGyro(const char* listName, float* bias) {
+    Serial.print("=== Gyro List: ");
     Serial.print(listName);
     Serial.println(" ===");
     Serial.print("gx  :");

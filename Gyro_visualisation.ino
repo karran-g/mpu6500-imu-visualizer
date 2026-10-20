@@ -4,8 +4,8 @@
 constexpr uint8_t add = 0x68;  //Guaranteed to be initialized at compile time.
 
 //Declaring scl and sda pins
-byte sda = 4;
-byte scl = 5;
+constexpr uint8_t sda = 4;
+constexpr uint8_t scl = 5;
 
 //Structs
 struct AxisStats {
@@ -14,6 +14,7 @@ struct AxisStats {
     int32_t sum = 0;
     int count = 0;
 };
+AxisStats before[6], after[6];
 struct configReg {
     uint8_t reg;
     uint8_t val;
@@ -30,13 +31,18 @@ configReg configRegisters[5] = {
 };
 
 float gyroBias[3];  // List containing the bias for each gyro axis, computed from the 2 gyro bias functions
-
 //Enum for different bias failure cases
 enum BiasResult : int8_t { BIAS_OK,            //Everything is good
                            BIAS_MOVED,         //External noise flag caused by sudden movement or board not being stationary
                            BIAS_BUS_FAILED };  //Flag if bus itself is dead.
 
 constexpr uint8_t NUM_CONFIGS = sizeof(configRegisters) / sizeof(configRegisters[0]);  //size of configReg list to be used later on in config functions
+constexpr uint8_t numAxisStats = sizeof(before) / sizeof(before[0]);                   //size of the axisStats lists, both have same size so any can be used for len calc.
+
+float gyroAngles[3] = { 0.0, 0.0, 0.0 };
+uint32_t times[3] = { 0 /*prevTime*/, 0 /*currentTime*/, 0 /*dt*/ };
+int failedAttempts = 0;
+
 
 void setup() {
     //Start serial; baud rate = 115,200
@@ -68,32 +74,31 @@ void setup() {
     }
     //--------------------------------------------------------------------------------------------------------------------------------------
     //Reset routine
-    byte reset = writeRegByte(add, 0x6B, 0x80);  //Write 1 to DEVICE_RESET in PWR_MGMT_1.
-    if (reset != 0) {
-        Serial.printf("Device not reset, Error type = %u\n", reset);
+    byte resetStatus = writeRegByte(add, 0x6B, 0x80);  //Write 1 to DEVICE_RESET in PWR_MGMT_1.
+    if (resetStatus != 0) {
+        Serial.printf("Device not reset, Error type = %u\n", resetStatus);  //print what transmission error took place
         while (true) delay(1000);
     }
     delay(100);
     byte clkStatus = writeRegByte(add, 0x6B, 0x01);  //Write 1 to CLKSEL in PWR_MGMT_1, selects the auto-select PLL source, else 20MHz RC clock.
     if (clkStatus != 0) {
-        Serial.printf("Clock not chosen, Error type = %u\n", clkStatus);
+        Serial.printf("Clock not chosen, Error type = %u\n", clkStatus);  //same as reset
         while (true) delay(1000);
     }
     delay(100);
+    /*
     //--------------------------------------------------------------------------------------------------------------------------------------
-    //Sample Run
-    AxisStats before[6], after[6];
+    //Sample Run for seeing how config registers affect the values 
 
     //200 samples Before
     bool beforeCheck = collectStats(add, before, 200);
-    int numAxisStats = sizeof(before) / sizeof(before[0]);
     printAxisStats("Before", before, numAxisStats);
     if (!beforeCheck) {
         Serial.printf("Before run incomplete: %d/200 samples, I2C unreliable\n", before[0].count);
         while (true) delay(1000);
     }
-
-    //config
+    */
+    //config registers: write and verify
     config(add, configRegisters, NUM_CONFIGS);
     bool configCheck = verifyConfig(add, configRegisters, NUM_CONFIGS);
     printConfigRegisters(configRegisters, NUM_CONFIGS);
@@ -101,15 +106,15 @@ void setup() {
         Serial.println("The config registers were not written properly !!");
         while (true) delay(1000);
     }
-
+    /*
     //200 samples After
     bool afterCheck = collectStats(add, after, 200);
-    numAxisStats = sizeof(after) / sizeof(after[0]);
     printAxisStats("After", after, numAxisStats);
     if (!afterCheck) {
         Serial.printf("After run incomplete: %d/200 samples, I2C unreliable\n", after[0].count);
         while (true) delay(1000);
     }
+    */
     //--------------------------------------------------------------------------------------------------------------------------------------
     //Bias.
     float diff[3];  //Error handling for difference of means for bias calc.
@@ -119,7 +124,7 @@ void setup() {
     while (flagBias == BIAS_MOVED && attempts < 5) {
 
         Serial.println("The board must be kept still for the biases to be computed!!");
-        printBias("Diff", diff);
+        printGyro("Diff", diff);
         delay(1500);
         flagBias = checkBias(add, gyroBias, diff, 100);
         attempts++;
@@ -130,21 +135,31 @@ void setup() {
     } else if (flagBias == BIAS_BUS_FAILED) {
         Serial.print("Count mismatch, bus may be ded!!\n");
         while (true) delay(1000);
-    } else if (flagBias == BIAS_OK) printBias("Bias", gyroBias);
+    } else if (flagBias == BIAS_OK) printGyro("Bias", gyroBias);
 
     //--------------------------------------------------------------------------------------------------------------------------------------
 
     //Sample run after removing Bias
-    float avg[6] = {0.0,0.0,0.0,0.0,0.0,0.0};
-    bool biasSample = avgSample(add, gyroBias, avg, 100);
-    printBias("corrected", avg + 3);  //avg +3 is pointer to avg[3](pointer decay)
+    float avg[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+    bool biasSample = avgSample(add, gyroBias, avg, 100);  //compute avg without bias over 100 runs
     if (!biasSample) {
         Serial.printf("Sample run incomplete : attempts exceeded 2*n!!\n");
         while (true) delay(1000);
     }
+    printGyro("Corrected", avg + 3);  //avg +3 is pointer to avg[3](pointer decay)
+
     //--------------------------------------------------------------------------------------------------------------------------------------
 
+    times[0] = micros();
 }
 
+float roll,pitch,yaw;
 void loop() {
+    calcAngles(add, gyroAngles, gyroBias, times, &failedAttempts);
+    delay(10);
+    roll = gyroAngles[0];
+    pitch = gyroAngles[1];
+    yaw = gyroAngles[2];
+    Serial.printf("%.2f,%.2f,%.2f\n", roll, pitch, yaw);
+    //Serial.printf("fails: %d\n", failedAttempts);
 }
